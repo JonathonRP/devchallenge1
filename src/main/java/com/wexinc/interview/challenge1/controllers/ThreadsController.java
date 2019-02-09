@@ -3,6 +3,7 @@ package com.wexinc.interview.challenge1.controllers;
 import static com.wexinc.interview.challenge1.util.JsonUtil.json;
 import static spark.Spark.get;
 import static spark.Spark.post;
+import static spark.Spark.exception;
 
 import java.util.stream.Collectors;
 
@@ -43,6 +44,8 @@ public class ThreadsController {
 		logger = LoggerFactory.getLogger(getClass());
 		logger.info("Threads controller started");
 
+		exception(NumberFormatException.class, (e, req, resp) -> resp.status(404));
+
 		get(Path.ThreadList,
 				(req, resp) -> threadRepo.getAll().stream()
 						.map(thrd -> new ThreadOverview(thrd.getId(), thrd.getTitle())).collect(Collectors.toList()),
@@ -58,6 +61,7 @@ public class ThreadsController {
 
 	private Route handleMessagePost = (Request req, Response resp) -> {
 		final Message message = new Gson().fromJson(req.body(), Message.class);
+		
 		if (message == null || AppUtils.isNullOrEmpty(message.getText())) {
 			resp.status(400);
 			return "";
@@ -65,13 +69,16 @@ public class ThreadsController {
 
 		final String authToken = req.headers("X-WEX-AuthToken");
 		final AuthorizationToken token = authManager.verifyAuthToken(authToken);
+		final AuthorizationToken rToken = authManager.rotateAuthToken(token);
 		MsgThread thread;
+
 		if (message.getThreadId() == 0) {
 			thread = threadRepo.createMessage(token.getUserId(), message.getText());
 		} else {
 			thread = threadRepo.createMessage(message.getThreadId(), token.getUserId(), message.getText());
 		}
 
+		resp.header("X-WEX-AuthToken", rToken.getAuthToken());
 		return new PostSuccessResponse(thread.getId());
 	};
 }

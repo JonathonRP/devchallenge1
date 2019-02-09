@@ -49,7 +49,7 @@ public class AuthManagerTests {
 		AuthorizationToken token = mgr.login(userId, pwd);
 		
 		try {
-		Thread.sleep(5);
+			Thread.sleep(5);
 		}
 		catch (InterruptedException ex) {
 			// Meh.  We don't care.
@@ -60,5 +60,31 @@ public class AuthManagerTests {
 		assertNotNull("New token is null", newToken);
 		assertNotEquals("Token values are identical", token.getAuthToken(), newToken.getAuthToken());
 		assertNotNull("New token is invalid", mgr.verifyAuthToken(newToken.getAuthToken()));
-	}	
+	}
+	
+	@Test
+	public void canChangePassword() throws AuthorizationException {
+		AuthorizationToken token = mgr.login(userId, pwd);
+
+		try {
+			Thread.sleep(5);
+		} catch (InterruptedException ex) {
+			// NA
+		}
+
+		AuthorizationToken newToken = mgr.changePassword(userId, token.getAuthToken(), "password!");
+
+		try {
+			Thread.sleep(5);
+		} catch (InterruptedException ex) {
+			// NA
+		}
+
+		AuthorizationToken token2 = mgr.login(userId, "password!");
+
+		assertNotNull("New token is null", newToken);
+		assertNotNull("Couldn't sign in with new password", token2);
+		assertNotEquals("Token values are identical", token.getAuthToken(), newToken.getAuthToken());
+		assertNotNull("New token is invalid", mgr.verifyAuthToken(newToken.getAuthToken()));
+	}
 }

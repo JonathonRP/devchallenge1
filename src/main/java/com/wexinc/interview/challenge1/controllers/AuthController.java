@@ -7,8 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.inject.Inject;
 import com.wexinc.interview.challenge1.models.AuthorizationToken;
+import com.wexinc.interview.challenge1.models.ChangePasswordRequest;
 import com.wexinc.interview.challenge1.models.LoginRequest;
 import com.wexinc.interview.challenge1.models.User;
 import com.wexinc.interview.challenge1.repositories.UserRepo;
@@ -40,10 +42,55 @@ public class AuthController {
 		logger.info("Starting AuthController");
 
 		post(Path.Login, handleLogin, json());
+		post("/changePassword/", handleChangePassword, json());
 	}
+
+	private Route handleChangePassword = (Request req, Response resp) -> {
+		final ChangePasswordRequest changePasswordRequest = new Gson().fromJson(req.body(), ChangePasswordRequest.class);
+
+		if (changePasswordRequest == null 
+			|| AppUtils.isNullOrEmpty(changePasswordRequest.getCurrentPassword())
+			|| AppUtils.isNullOrEmpty(changePasswordRequest.getNewPassword()) 
+			|| AppUtils.isNullOrEmpty(changePasswordRequest.getVerifyPassword())) {
+			
+			resp.status(400);
+			return "";
+		}
+
+		final String authToken = req.headers("X-WEX-AuthToken");
+		final AuthorizationToken token = authManager.verifyAuthToken(authToken);
+
+		if (token == null) {
+			resp.status(403);
+			return "";
+		}
+
+		final User user = userRepo.loadUser(token.getUserId());
+		
+		final AuthorizationToken validatePassword = authManager.login(user.getId(), changePasswordRequest.getCurrentPassword());
+
+		if (validatePassword == null) {
+			resp.status(403);
+			return "";
+		}
+
+		final String newPassword = changePasswordRequest.getNewPassword();
+		final String verifyPassword = changePasswordRequest.getVerifyPassword();
+
+		if (!newPassword.equals(verifyPassword)) {
+			resp.status(400);
+			JsonObject error = new JsonObject();
+			error.addProperty("errorMessage", "New passwords do not match");
+			return error;
+		}
+		
+		final AuthorizationToken newToken = authManager.changePassword(user.getId(), token.getAuthToken(), newPassword);
+		return newToken.getAuthToken();
+	};
 
 	private Route handleLogin = (Request req, Response resp) -> {
 		final LoginRequest loginRequest = new Gson().fromJson(req.body(), LoginRequest.class);
+
 		if (loginRequest == null || AppUtils.isNullOrEmpty(loginRequest.getPassword())
 				|| AppUtils.isNullOrEmpty(loginRequest.getUserName())) {
 			resp.status(400);
@@ -51,6 +98,7 @@ public class AuthController {
 		}
 
 		final User user = userRepo.getByName(loginRequest.getUserName());
+
 		if (user == null) {
 			resp.status(403);
 			return "";

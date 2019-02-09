@@ -25,7 +25,7 @@ public class Main {
 				resp.redirect(path + "/", 307);
 			}
 		});
-
+		
 		injector.getInstance(ThreadsController.class);
 		injector.getInstance(AuthController.class);
 

@@ -62,11 +62,11 @@ public class AuthManagerImpl implements AuthManager {
 	}
 
 	@Override
-	public AuthorizationToken changePassword(int userId, String authToken, String newPassword)
-			throws AuthorizationException {
-		// TODO Auto-generated method stub
-		return null;
+	public AuthorizationToken changePassword(int userId, String authToken, String newPassword) throws AuthorizationException {
+		AuthorizationToken token = verifyAuthToken(authToken);
+		User user = userRepo.loadUser(userId);
+		user.setPassHash(hasher.hash(newPassword, "salt"));
+		userRepo.saveUser(user);
+		return rotateAuthToken(token);
 	}
-
-	
 }
